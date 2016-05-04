@@ -1,0 +1,228 @@
+#!/bin/bash
+TRUE="true"
+FALSE="false"
+SCRIPT_NAME=$0
+SCRIPT_DIR=$(dirname $(readlink -e $SCRIPT_NAME))
+
+. ${SCRIPT_DIR}/tools.sh
+
+SRV_HDFS_NAMENODE="hdfs_nn"
+HBASE_CONF_SITE=$HBASE_CONF_DIR/hbase-site.xml
+HBASE_CONF_REGIONSERVERS=$HBASE_CONF_DIR/regionservers
+
+HBASE_DAEMON=${HBASE_HOME}/bin/hbase-daemon.sh
+HBASE_DAEMONS=${HBASE_HOME}/bin/hbase-daemons.sh
+
+ACTION_MASTER="master"
+ACTION_MASTER_BACKUP="master-backup"
+ACTION_REGIONSERVER="regionserver"
+
+OPTION_DEBUG="--debug"
+OPTION_CONFIG="--config"
+
+#SRV_RESOLVER=/opt/srv_resolver.sh
+
+APP_HOME=$SCRIPT_DIR
+PID_DIR=$APP_HOME/logs/pid
+PID_FILE=hbase.pid
+
+unset action
+debug=$FALSE
+unset conf_dir
+unset namenode_format
+
+function func_usage(){
+    #echo "${BASH_ARGV[${#BASH_ARGV[@]}-1]} [OPTION] <ACTION>"
+    echo "$SCRIPT_NAME [OPTION] <ACTION>"
+    echo ""
+    echo "ACTION"
+    echo ""
+    echo " $ACTION_MASTER"
+    echo " $ACTION_MASTER_BACKUP"
+    echo " $ACTION_REGIONSERVER"
+    echo ""
+    echo "OPTION"
+    echo " $OPTION_DEBUG"
+    echo " $OPTION_CONFIG confdir"
+#    echo " $ACTION_STOP"
+    exit
+}
+
+#function func_resolve_service(){
+#    local unset ipaddr
+#    $SRV_RESOLVER -i $SRV_HDFS_NAMENODE | awk '{print $1}'
+#}
+
+function func_configure(){
+    tool_template_fill_in_in_place $HBASE_CONF_SITE "HDFS_NAMENODE" "$HDFS_NAMENODE"
+    tool_template_fill_in_in_place $HBASE_CONF_SITE "ZK_QUORUM" "$ZK_QUORUM"
+
+    # configure hosts
+    #cat /etc/hosts | sed 's/^.* *\('"$(hostname)"'.*\)/'"$DOCKER_HOST_IP"' \1/g'
+    sed -i 's/^.* *\('"$(hostname)"'.*\)/'"$DOCKER_HOST_IP"' \1/g' /etc/hosts
+}
+
+function func_parse_args(){
+   local argp=0
+   local argv=("$@")
+   local argn=${#argv[@]}
+   local unset remained_args
+   ((remained_args=argn-argp))
+
+   while true; do
+       ((remained_args=argn-argp))
+       if [[ ${argv[argp]} == $ACTION_MASTER ]]; then
+           action=$ACTION_MASTER
+           ((argp++))
+           break
+       elif [ $remained_args -eq 1 ] && [[ ${argv[argp]} == $ACTION_MASTER_BACKUP ]]; then
+           action=$ACTION_MASTER_BACKUP
+           ((argp++))
+           break
+       elif [ $remained_args -eq 1 ] && [[ ${argv[argp]} == $ACTION_REGIONSERVER ]]; then
+           action=$ACTION_REGIONSERVER
+           ((argp++))
+           break
+       elif [[ ${argv[argp]} == $OPTION_DEBUG ]]; then
+           debug=$TRUE
+           ((argp++))
+           continue
+       elif [[ ${argv[argp]} == $OPTION_CONFIG ]]; then
+           conf_dir=${argv[argp+1]}
+           ((argp=argp+2))
+           continue
+       else
+           func_usage
+       fi
+       break
+   done
+
+   echo $action
+}
+
+
+function func_init_log(){
+    if [ ! -d $PID_DIR ]; then
+         mkdir -p $PID_DIR
+    fi
+
+    if [ -f $PID_DIR/$PID_FILE ]; then
+         rm $PID_DIR/$PID_FILE
+    fi
+}
+
+function func_debug(){
+    while true; do
+        echo "[$(date)] heartbeat for debugging container..."
+        sleep 10 
+    done
+}
+
+function action_run_namenode(){
+#    sed -i 's/HDFS_NAMENODE/localhost/g' $HBASE_CONF_SITE
+    local cmd=""
+    local is_formatted=$(func_check_hdfs_formatted)
+    if [ $namenode_format ] && [[ $is_formatted == $FALSE ]]; then
+        cmd="$HDFS namenode -format && "
+    fi
+
+    if [ -z $conf_dir ]; then
+        cmd="$cmd $HDFS namenode"
+    else
+        cmd="$cmd $HDFS $OPTION_CONFIG $conf_dir namenode"
+    fi
+
+    if [[ $debug == $TRUE ]]; then
+        echo "here!!"
+        eval $cmd &
+        func_debug
+    else
+        echo "there!!"
+        eval $cmd
+    fi
+}
+
+function func_edit_hbase_script(){
+    # Edit hbase-daemon.sh
+    sed -i '193i tail -f ${HBASE_LOGLOG}' ${HBASE_DAEMON}
+}
+
+function action_run_master(){
+    local cmd="$HBASE_DAEMON"
+
+    if [ ! -z $conf_dir ]; then
+        cmd=${cmd}" $OPTION_CONFIG $conf_dir"
+    fi
+    cmd=${cmd}" start master"
+
+    if [[ $debug == $TRUE ]]; then
+        eval $cmd &
+        func_debug
+    else
+        eval $cmd
+    fi
+}
+
+function action_run_master_backup(){
+    local cmd="$HBASE_DAEMON"
+
+    if [ ! -z $conf_dir ]; then
+        cmd=${cmd}" $OPTION_CONFIG $conf_dir"
+    fi
+    cmd=${cmd}" start master --backup"
+
+    if [[ $debug == $TRUE ]]; then
+        eval $cmd &
+        func_debug
+    else
+        eval $cmd
+    fi
+}
+
+function action_run_regionserver(){
+    local cmd="$HBASE_DAEMON"
+
+    if [ ! -z $conf_dir ]; then
+        cmd=${cmd}" $OPTION_CONFIG $conf_dir"
+    fi
+    cmd=${cmd}" start regionserver"
+
+    if [[ $debug == $TRUE ]]; then
+        eval $cmd &
+        func_debug
+    else
+        eval $cmd
+    fi
+}
+
+function func_run_action(){
+    case "$action" in
+        master)
+            func_configure
+            action_run_master
+            ;;
+        master-backup)
+            func_configure
+            action_run_master_backup
+            ;;
+        regionserver)
+            func_configure
+            action_run_regionserver
+            ;;
+        *)
+            func_usage
+            ;;
+    esac
+}
+
+argv=($@)
+echo $@
+#func_parse_args ${argv[@]}
+##func_check_process
+#func_init_log
+#func_edit_hbase_script
+#func_run_action
+while true; do
+    echo "[$(date)]I am alive!"
+    sleep 5
+done

@@ -1,0 +1,20 @@
+hbase_m:
+    container_name: pinpoint_c
+    image: cjongseok/pinpoint:1.5.2
+    restart: always
+    # HOST_NAME is automatically resolved by hbase_env.sh
+    hostname: <HOST_NAME>
+    ports:
+        - "9994-9996:9994-9996"
+        - "9995-9996:9995-9996/udp"
+        - "8080:8080"
+    environment:
+        - CLUSTER_ENABLE=true
+        - DISABLE_DEBUG=false
+        # Below env variables are automatically allocated by hdfs_env.sh
+        - CLUSTER_ZOOKEEPER_ADDRESS=
+        - HBASE_HOST=
+        - DOCKER_HOST_IP=
+        - SERVICE_NAME=
+    #command: --config /opt/hbase-1.2.1/conf master
+    command: --debug --config /opt/pinpoint-1.5.2/conf/collector collector
