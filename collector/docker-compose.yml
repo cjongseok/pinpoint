@@ -14,7 +14,9 @@ hbase_m:
         # Below env variables are automatically allocated by hdfs_env.sh
         - CLUSTER_ZOOKEEPER_ADDRESS=
         - HBASE_HOST=
+        - HDFS_NAMENODE=
         - DOCKER_HOST_IP=
         - SERVICE_NAME=
     #command: --config /opt/hbase-1.2.1/conf master
-    command: --debug --config /opt/pinpoint-1.5.2/conf/collector collector
+    #command: --debug --config /opt/pinpoint-1.5.2/conf/collector collector
+    command: --debug collector

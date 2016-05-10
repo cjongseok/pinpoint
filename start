@@ -6,21 +6,25 @@ SCRIPT_DIR=$(dirname $(readlink -e $SCRIPT_NAME))
 
 . ${SCRIPT_DIR}/tools.sh
 
-SRV_HDFS_NAMENODE="hdfs_nn"
+HBASE_SHELL="${HBASE_HOME}/bin/hbase shell"
 HBASE_CONF_SITE=$HBASE_CONF_DIR/hbase-site.xml
-HBASE_CONF_REGIONSERVERS=$HBASE_CONF_DIR/regionservers
+HBASE_SCRIPT_CREATE_TABLES=/opt/hbase_scripts/hbase-create.hbase
+HBASE_SCRIPT_DROP_TABLES=/opt/hbase_scripts/hbase-create.hbase
+TABLE_EXISTENCE_CHECKER="/opt/check_table_existence.sh /opt/hbase_tables.list"
+#TODO: TABLE_SCHEME_CHECKER=
 
-HBASE_DAEMON=${HBASE_HOME}/bin/hbase-daemon.sh
-HBASE_DAEMONS=${HBASE_HOME}/bin/hbase-daemons.sh
+TOMCAT_DAEMON=${CATALINA_HOME}/bin/catalina.sh
+TOMCAT_CMD_START="${TOMCAT_DAEMON} run"
+TOMCAT_CMD_STOP="${TOMCAT_DAEMON} stop"
 
-ACTION_MASTER="master"
-ACTION_MASTER_BACKUP="master-backup"
-ACTION_REGIONSERVER="regionserver"
+WEBAPP_COLLECTOR=${PINPOINT_HOME}/collector
+WEBAPP_WEB=${PINPOINT_HOME}/web
+
+ACTION_COLLECTOR="collector"
+ACTION_WEB="web"
 
 OPTION_DEBUG="--debug"
 OPTION_CONFIG="--config"
-
-#SRV_RESOLVER=/opt/srv_resolver.sh
 
 APP_HOME=$SCRIPT_DIR
 PID_DIR=$APP_HOME/logs/pid
@@ -37,50 +41,98 @@ function func_usage(){
     echo ""
     echo "ACTION"
     echo ""
-    echo " $ACTION_MASTER"
-    echo " $ACTION_MASTER_BACKUP"
-    echo " $ACTION_REGIONSERVER"
+    echo " $ACTION_COLLECTOR"
+    echo " $ACTION_WEB"
     echo ""
     echo "OPTION"
     echo " $OPTION_DEBUG"
     echo " $OPTION_CONFIG confdir"
-#    echo " $ACTION_STOP"
     exit
 }
 
-#function func_resolve_service(){
-#    local unset ipaddr
-#    $SRV_RESOLVER -i $SRV_HDFS_NAMENODE | awk '{print $1}'
-#}
+# $1: webapp
+function func_set_webapp(){
+    local webapp=$1
+    local symlink=${CATALINA_APPS}/ROOT
 
-function func_configure(){
-    tool_template_fill_in_in_place $HBASE_CONF_SITE "HDFS_NAMENODE" "$HDFS_NAMENODE"
-    tool_template_fill_in_in_place $HBASE_CONF_SITE "ZK_QUORUM" "$ZK_QUORUM"
+    if [ -d $symlink ]; then
+        rm -rf $symlink
+        #sudo rm -rf $symlink
+    elif [ -f $symlink ]; then
+        rm $symlink
+        #sudo rm $symlink
+    fi
 
-    # configure hosts
-    #cat /etc/hosts | sed 's/^.* *\('"$(hostname)"'.*\)/'"$DOCKER_HOST_IP"' \1/g'
-    sed -i 's/^.* *\('"$(hostname)"'.*\)/'"$DOCKER_HOST_IP"' \1/g' /etc/hosts
+    ln -s $webapp $symlink
+    #sudo ln -s $webapp $symlink
 }
 
+
+function func_configure_hbase(){
+    CLUSTER_ZOOKEEPER_ADDRESS=${CLUSTER_ZOOKEEPER_ADDRESS:-localhost}
+    HDFS_NAMENODE=${HDFS_NAMENODE:-localhost}
+
+    tool_template_fill_in_in_place $HBASE_CONF_SITE "HDFS_NAMENODE" "$HDFS_NAMENODE"
+    tool_template_fill_in_in_place $HBASE_CONF_SITE "ZK_QUORUM" "$CLUSTER_ZOOKEEPER_ADDRESS"
+}
+
+function func_configure_pinpoint(){
+    local webapp_conf_dir=${CATALINA_APPS}/ROOT/WEB-INF/classes
+    cp -r $conf_dir/* $webapp_conf_dir/
+
+    CLUSTER_ENABLE=${CLUSTER_ENABLE:-false}
+    CLUSTER_ZOOKEEPER_ADDRESS=${CLUSTER_ZOOKEEPER_ADDRESS:-localhost}
+    ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+
+    COLLECTOR_TCP_PORT=${COLLECTOR_TCP_PORT:-9994}
+    COLLECTOR_UDP_STAT_LISTEN_PORT=${COLLECTOR_UDP_STAT_LISTEN_PORT:-9995}
+    COLLECTOR_UDP_SPAN_LISTEN_PORT=${COLLECTOR_UDP_SPAN_LISTEN_PORT:-9996}
+
+    HBASE_HOST=${HBASE_HOST:-localhost}
+    HBASE_PORT=${HBASE_PORT:-16000}
+
+    DISABLE_DEBUG=${DISABLE_DEBUG:-true}
+
+
+    if [[ $action == $ACTION_COLLECTOR ]]; then
+
+        # set properties
+        sed -i "s/cluster.enable=true/cluster.enable=${CLUSTER_ENABLE}/g" $webapp_conf_dir/pinpoint-collector.properties
+        sed -i "s/cluster.zookeeper.address=localhost/cluster.zookeeper.address=${CLUSTER_ZOOKEEPER_ADDRESS}/g" $webapp_conf_dir/pinpoint-collector.properties
+
+        sed -i "s/hbase.client.host=localhost/hbase.client.host=${HBASE_HOST}/g" $webapp_conf_dir/hbase.properties
+        sed -i "s/hbase.client.port=2181/hbase.client.port=${HBASE_PORT}/g" $webapp_conf_dir/hbase.properties
+
+    elif [[ $action == $ACTION_WEB ]]; then
+        sed -i "s/cluster.enable=true/cluster.enable=${CLUSTER_ENABLE}/g" $webapp_conf_dir/pinpoint-web.properties
+        sed -i "s/cluster.zookeeper.address=localhost/cluster.zookeeper.address=${CLUSTER_ZOOKEEPER_ADDRESS}/g" $webapp_conf_dir/pinpoint-web.properties
+
+        sed -i "s/admin.password=admin/admin.password=${ADMIN_PASSWORD}/g" $webapp_conf_dir/pinpoint-web.properties
+
+        sed -i "s/hbase.client.host=localhost/hbase.client.host=${HBASE_HOST}/g" $webapp_conf_dir/hbase.properties
+        sed -i "s/hbase.client.port=2181/hbase.client.port=${HBASE_PORT}/g" $webapp_conf_dir/hbase.properties
+    fi
+
+    if [ "$DISABLE_DEBUG" == "true" ]; then
+            sed -i 's/level value="DEBUG"/level value="INFO"/' $web_app_conf_dir/log4j.xml
+    fi
+}
+
+# TODO: Json based parameter parser
 function func_parse_args(){
    local argp=0
    local argv=("$@")
    local argn=${#argv[@]}
    local unset remained_args
-   ((remained_args=argn-argp))
 
    while true; do
        ((remained_args=argn-argp))
-       if [[ ${argv[argp]} == $ACTION_MASTER ]]; then
-           action=$ACTION_MASTER
+       if [ $remained_args -eq 1 ] && [[ ${argv[argp]} == $ACTION_COLLECTOR ]]; then
+           action=$ACTION_COLLECTOR
            ((argp++))
            break
-       elif [ $remained_args -eq 1 ] && [[ ${argv[argp]} == $ACTION_MASTER_BACKUP ]]; then
-           action=$ACTION_MASTER_BACKUP
-           ((argp++))
-           break
-       elif [ $remained_args -eq 1 ] && [[ ${argv[argp]} == $ACTION_REGIONSERVER ]]; then
-           action=$ACTION_REGIONSERVER
+       elif [ $remained_args -eq 1 ] && [[ ${argv[argp]} == $ACTION_WEB ]]; then
+           action=$ACTION_WEB
            ((argp++))
            break
        elif [[ ${argv[argp]} == $OPTION_DEBUG ]]; then
@@ -118,42 +170,28 @@ function func_debug(){
     done
 }
 
-function action_run_namenode(){
-#    sed -i 's/HDFS_NAMENODE/localhost/g' $HBASE_CONF_SITE
-    local cmd=""
-    local is_formatted=$(func_check_hdfs_formatted)
-    if [ $namenode_format ] && [[ $is_formatted == $FALSE ]]; then
-        cmd="$HDFS namenode -format && "
-    fi
+# $1: action
+# $2: webapp
+function func_run_common_action(){
+    local local_action=$1
+    local local_webapp=$2
 
-    if [ -z $conf_dir ]; then
-        cmd="$cmd $HDFS namenode"
+    func_set_webapp $local_webapp
+    local cmd=$TOMCAT_CMD_START
+
+    # Set config files
+    conf_dir=${conf_dir:-${PINPOINT_CONF_DIR}/$local_action}
+
+    func_configure_pinpoint
+    func_configure_hbase
+
+    # Create tables on Hbase, if not exists
+    if [[ $(eval ${TABLE_EXISTENCE_CHECKER}) == $FALSE ]]; then
+        echo "[$(date)] Pinpoint tables do NOT exist on Hbase. Create tables"
+        eval $HBASE_SHELL $HBASE_SCRIPT_CREATE_TABLES
     else
-        cmd="$cmd $HDFS $OPTION_CONFIG $conf_dir namenode"
+        echo "[$(date)] Pinpoint tables already exist on Hbase."
     fi
-
-    if [[ $debug == $TRUE ]]; then
-        echo "here!!"
-        eval $cmd &
-        func_debug
-    else
-        echo "there!!"
-        eval $cmd
-    fi
-}
-
-function func_edit_hbase_script(){
-    # Edit hbase-daemon.sh
-    sed -i '193i tail -f ${HBASE_LOGLOG}' ${HBASE_DAEMON}
-}
-
-function action_run_master(){
-    local cmd="$HBASE_DAEMON"
-
-    if [ ! -z $conf_dir ]; then
-        cmd=${cmd}" $OPTION_CONFIG $conf_dir"
-    fi
-    cmd=${cmd}" start master"
 
     if [[ $debug == $TRUE ]]; then
         eval $cmd &
@@ -163,51 +201,21 @@ function action_run_master(){
     fi
 }
 
-function action_run_master_backup(){
-    local cmd="$HBASE_DAEMON"
-
-    if [ ! -z $conf_dir ]; then
-        cmd=${cmd}" $OPTION_CONFIG $conf_dir"
-    fi
-    cmd=${cmd}" start master --backup"
-
-    if [[ $debug == $TRUE ]]; then
-        eval $cmd &
-        func_debug
-    else
-        eval $cmd
-    fi
+function action_run_collector(){
+    func_run_common_action "collector" $WEBAPP_COLLECTOR
 }
 
-function action_run_regionserver(){
-    local cmd="$HBASE_DAEMON"
-
-    if [ ! -z $conf_dir ]; then
-        cmd=${cmd}" $OPTION_CONFIG $conf_dir"
-    fi
-    cmd=${cmd}" start regionserver"
-
-    if [[ $debug == $TRUE ]]; then
-        eval $cmd &
-        func_debug
-    else
-        eval $cmd
-    fi
+function action_run_web(){
+    func_run_common_action "web" $WEBAPP_WEB
 }
 
 function func_run_action(){
     case "$action" in
-        master)
-            func_configure
-            action_run_master
+        collector)
+            action_run_collector
             ;;
-        master-backup)
-            func_configure
-            action_run_master_backup
-            ;;
-        regionserver)
-            func_configure
-            action_run_regionserver
+        web)
+            action_run_web
             ;;
         *)
             func_usage
@@ -217,12 +225,13 @@ function func_run_action(){
 
 argv=($@)
 echo $@
-#func_parse_args ${argv[@]}
-##func_check_process
-#func_init_log
+func_parse_args ${argv[@]}
+#func_check_process
+func_init_log
 #func_edit_hbase_script
-#func_run_action
-while true; do
-    echo "[$(date)]I am alive!"
-    sleep 5
-done
+func_run_action
+
+#while true; do
+#    echo "[$(date)]I am alive!"
+#    sleep 5
+#done

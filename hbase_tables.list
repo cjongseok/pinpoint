@@ -1,0 +1,14 @@
+AgentInfo
+AgentStat
+AgentLifeCycle
+AgentEvent
+ApplicationIndex
+StringMetaData
+ApiMetaData
+SqlMetaData_Ver2
+ApplicationTraceIndex
+Traces
+ApplicationMapStatisticsCaller_Ver2
+ApplicationMapStatisticsCallee_Ver2
+ApplicationMapStatisticsSelf_Ver2
+HostApplicationMap_Ver2
