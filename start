@@ -9,7 +9,7 @@ SCRIPT_DIR=$(dirname $(readlink -e $SCRIPT_NAME))
 HBASE_SHELL="${HBASE_HOME}/bin/hbase shell"
 HBASE_CONF_SITE=$HBASE_CONF_DIR/hbase-site.xml
 HBASE_SCRIPT_CREATE_TABLES=/opt/hbase_scripts/hbase-create.hbase
-HBASE_SCRIPT_DROP_TABLES=/opt/hbase_scripts/hbase-create.hbase
+HBASE_SCRIPT_DROP_TABLES=/opt/hbase_scripts/hbase-drop.hbase
 TABLE_EXISTENCE_CHECKER="/opt/check_table_existence.sh /opt/hbase_tables.list"
 #TODO: TABLE_SCHEME_CHECKER=
 
@@ -90,6 +90,7 @@ function func_configure_pinpoint(){
 
     HBASE_HOST=${HBASE_HOST:-localhost}
     HBASE_PORT=${HBASE_PORT:-16000}
+#    HBASE_PORT=${HBASE_PORT:-2181}
 
     DISABLE_DEBUG=${DISABLE_DEBUG:-true}
 
@@ -165,8 +166,8 @@ function func_init_log(){
 
 function func_debug(){
     while true; do
-        echo "[$(date)] heartbeat for debugging container..."
-        sleep 10 
+#        echo "[$(date)] heartbeat for debugging container..."
+        sleep 60
     done
 }
 

@@ -13,10 +13,12 @@ tmp_file=.hbase_out.tmp
 #HBASE=../hbase/hbase/bin/hbase
 HBASE=${HBASE_HOME}/bin/hbase
 
-HBASE_SCRIPT=list.hbase
+#HBASE_SCRIPT=list.hbase
+HBASE_SCRIPT=list-tables.hbase
 
 table_list=()
 
+# TODO: generalize it for common hbase scripts
 function func_list_tables(){
     ${HBASE} shell $HBASE_SCRIPT > $tmp_file
     local line_num=$(cat $tmp_file | wc -l)

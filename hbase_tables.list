@@ -1,13 +1,14 @@
 AgentInfo
 AgentStat
+AgentStatAggr
+ApplicationIndex
 AgentLifeCycle
 AgentEvent
-ApplicationIndex
 StringMetaData
 ApiMetaData
 SqlMetaData_Ver2
-ApplicationTraceIndex
 Traces
+ApplicationTraceIndex
 ApplicationMapStatisticsCaller_Ver2
 ApplicationMapStatisticsCallee_Ver2
 ApplicationMapStatisticsSelf_Ver2
