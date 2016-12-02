@@ -1,16 +1,16 @@
 # only example
 pinpoint-agent:
-  image: pinpoint-agent:1.5.2
+  image: pinpoint-agent:1.6.0-RC2
   #net: "none"
   restart: unless-stopped
   volumes:
-    - /opt/pinpoint:/opt/pinpoint-1.5.2/app
+    - /opt/pinpoint:/opt/pinpoint-1.6.0-RC2/app
   ports:
     - 9111:9111
   environment:
-    PINPOINT_APP_HOME: /opt/pinpoint-1.5.2/app
+    PINPOINT_APP_HOME: /opt/pinpoint-1.6.0-RC2/app
     APP_NAME: ExampleApp
-    APP_PATH: /opt/pinpoint-1.5.2/app/example.jar
+    APP_PATH: /opt/pinpoint-1.6.0-RC2/app/example.jar
     COLLECTOR_IP: 192.168.1.11
     #COLLECTOR_TCP_PORT: 9994
     #COLLECTOR_UDP_STAT_LISTEN_PORT: 9995

@@ -14,7 +14,7 @@ SCRIPT_DIR=$(dirname $(readlink -e $0))
 
 ## Required env variables ##################################################
 # Pinpoint Params
-PINPOINT_VERSION=${PINPOINT_VERSION:-1.5.2}
+PINPOINT_VERSION=${PINPOINT_VERSION:-1.6.0-RC2}
 PINPOINT_HOME=${PINPOINT_HOME:-/opt/pinpoint-${PINPOINT_VERSION}}
 PINPOINT_AGENT_HOME=${PINPOINT_AGENT_HOME:-${PINPOINT_HOME}/agent}
 PINPOINT_APP_HOME=${PINPOINT_APP_HOME:-${PINPOINT_HOME}/app}

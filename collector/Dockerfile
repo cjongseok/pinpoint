@@ -1,7 +1,7 @@
 FROM tomcat:8-jre8
 MAINTAINER Jongseok Choi <cjongseok@gmail.com>
 
-ENV PINPOINT_VERSION 1.5.2
+ENV PINPOINT_VERSION 1.6.0-RC2
 ENV PINPOINT_HOME /opt/pinpoint-${PINPOINT_VERSION}
 ENV WAR_BALL pinpoint-collector-${PINPOINT_VERSION}.war
 
