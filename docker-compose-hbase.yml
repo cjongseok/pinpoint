@@ -1,0 +1,11 @@
+pinpoint-hbase:
+  container_name: pinpoint-hbase
+  hostname: hbase
+  image: pinpoint-hbase:1.6.0-RC2
+  restart: always
+  expose:
+    - "2181"
+    - "16010"
+  ports:
+    - "2181:2181"
+    - "16010:16010"
