@@ -7,8 +7,8 @@
 #   Most parts are from Naver/Pinpoint Github.
 #   I just made it work with my Docker image.   
 
-set -e
-set -x
+#set -e
+#set -x
 
 SCRIPT_DIR=$(dirname $(readlink -e $0))
 
