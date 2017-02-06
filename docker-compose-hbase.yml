@@ -1,7 +1,7 @@
 pinpoint-hbase:
   container_name: pinpoint-hbase
   hostname: hbase
-  image: pinpoint-hbase:1.6.0-RC2
+  image: pinpoint-hbase:1.6.0
   restart: always
   expose:
     - "2181"
