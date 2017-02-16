@@ -31,11 +31,14 @@ COLLECTOR_TCP_PORT=${COLLECTOR_TCP_PORT:-9994}
 COLLECTOR_UDP_STAT_LISTEN_PORT=${COLLECTOR_UDP_STAT_LISTEN_PORT:-9995}
 COLLECTOR_UDP_SPAN_LISTEN_PORT=${COLLECTOR_UDP_SPAN_LISTEN_PORT:-9996}
 DISABLE_DEBUG=${DISABLE_DEBUG:-true}
+
+# Other user defined Java params
+JAVA_OPTS=${JAVA_OPTS:-}
 ############################################################################
 
 # Java params
 PINPOINT_JAVA_AGENT=${PINPOINT_AGENT_HOME}/pinpoint-bootstrap-${PINPOINT_VERSION}.jar
-PINPOINT_JAVA_OPT="-javaagent:${PINPOINT_JAVA_AGENT} -Dpinpoint.agentId=${AGENT_ID} -Dpinpoint.applicationName=${APP_NAME}"
+PINPOINT_JAVA_OPT="-javaagent:${PINPOINT_JAVA_AGENT} ${JAVA_OPTS} -Dpinpoint.agentId=${AGENT_ID} -Dpinpoint.applicationName=${APP_NAME}"
 
 CONFIGURED=${PINPOINT_HOME}/Configured
 LOGS_DIR=${PINPOINT_HOME}/logs
